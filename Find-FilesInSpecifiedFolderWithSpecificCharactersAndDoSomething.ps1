@@ -171,8 +171,8 @@ function ReplaceCharsInItems()
             if ($MV -match $SelectedCharacter)
             {
                 $OldName = $turd.name
-                $NewName = $OldName.Replace($MV, $Replacement)
-                Write-Host "Replacing $MV in "$turd.name" with $Replacement;" $NewName
+                $NewName = $OldName -Replace $SelectedCharacter, $Replacement
+                Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName;# $turd.name=$NewName
             }
         }
     }
