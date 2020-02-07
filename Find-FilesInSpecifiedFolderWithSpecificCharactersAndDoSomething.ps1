@@ -101,6 +101,7 @@ function FilterItems($Items, $RegEx)
         if ($v = $item.Name | Select-String -AllMatches $RegEx | Select-Object -ExpandProperty Matches)
         {
             $item | Add-Member -MemberType NoteProperty -Name MatchedValue -Value $v.Value
+            $item | Add-Member -MemberType NoteProperty -Name NameToChange -Value $item.name
             $shit = $shit + $item
         }
     }
@@ -170,9 +171,9 @@ function ReplaceCharsInItems()
             $MV = $turd.MatchedValue
             if ($MV -match $SelectedCharacter)
             {
-                $OldName = $turd.name
+                $OldName = $turd.NameToChange
                 $NewName = $OldName -Replace $SelectedCharacter, $Replacement
-                Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName;# $turd.name=$NewName
+                Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName; $turd.NameToChange=$NewName
             }
         }
     }
