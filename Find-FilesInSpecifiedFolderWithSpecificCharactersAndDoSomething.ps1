@@ -153,14 +153,26 @@ function ExportList()
 
 function ReplaceCharsInItems()
 {
+    $Chars = $Chars -replace '[\\]' #\ is used as an escape character in RegEx, but we can't have file names with them, so it should not be in this loop
     for ($i=0; $i -lt $Chars.length; $i++)
     {
-        Write-Host "You have selected: "$Chars[$i]" What do you want to replace this character with?";$Replacement = Read-Host
-            foreach ($turd in $shit)
+        Write-Host "You have selected: "$Chars[$i]" What do you want to replace this character with? " -NoNewline;$Replacement = Read-Host
+        $SelectedCharacter = $Chars[$i]
+        foreach ($turd in $shit)
+        {
+            #These Error and need to be escaped
+            #[ + ( )
+            #This no error list all? needs to be escaped
+            #^ $
+            # above needs to be esaped with \
+            $MV = $turd.MatchedValue
+            if ($MV -match $SelectedCharacter)
             {
-                #Centeralize "$turd has an illegal character $($turd.MatchedValue)" "Red"
-                if ($turd.MatchedValue -match "$i") { Write-Host "Replacing $i with $Replacement"} #$newFileName = ($newFileName -replace "&", "and") }
+                $OldName = $turd.name
+                $NewName = $OldName.Replace($MV, $Replacement)
+                Write-Host "Replacing $MV in "$turd.name" with $Replacement;" $NewName
             }
+        }
     }
 
 }
