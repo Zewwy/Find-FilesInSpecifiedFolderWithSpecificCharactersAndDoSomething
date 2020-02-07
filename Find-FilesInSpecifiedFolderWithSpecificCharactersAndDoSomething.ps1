@@ -153,18 +153,20 @@ function ExportList()
 
 function ReplaceCharsInItems()
 {
+    #These chacaters cause -match to Error and need to be escaped
+    #[ + ( )
+    #These don't cause -match to error but list all? needs to be escaped
+    #^ $
+    #all the above need to be esaped with \ .... fuckers
     $Chars = $Chars -replace '[\\]' #\ is used as an escape character in RegEx, but we can't have file names with them, so it should not be in this loop
+    $Fuckers = '[+($)^\[]' #The list of special characters in RegEx that need to be escaped
     for ($i=0; $i -lt $Chars.length; $i++)
     {
         Write-Host "You have selected: "$Chars[$i]" What do you want to replace this character with? " -NoNewline;$Replacement = Read-Host
         $SelectedCharacter = $Chars[$i]
+        if($SelectedCharacter | Select-String -AllMatches $Fuckers){Write-Host "We found a special character... fixing...";$SelectedCharacter = "\"+$SelectedCharacter}
         foreach ($turd in $shit)
         {
-            #These Error and need to be escaped
-            #[ + ( )
-            #This no error list all? needs to be escaped
-            #^ $
-            # above needs to be esaped with \
             $MV = $turd.MatchedValue
             if ($MV -match $SelectedCharacter)
             {
@@ -174,7 +176,6 @@ function ReplaceCharsInItems()
             }
         }
     }
-
 }
 
 ##########################################################################################################################
