@@ -1,7 +1,7 @@
 ########################################################################################################################## 
 # Author: Zewwy (Aemilianus Kehler)
 # Date:   Feb 4, 2020
-# Script: Change-FilesName
+# Script: Find-FilesInSpecifiedFolderWithSpecificCharactersAndDoSomething
 # This script allows to remove/change characters from file names
 # Required parameters: 
 #   A File Path and selected characters of users choice
@@ -14,7 +14,8 @@
 #MyLogoArray
 $MylogoArray = @("#####################################","# This script is brought to you by: #","#                                   #","#             Zewwy                 #","#                                   #","#####################################"," ")
 #Static Variables
-$ScriptName = "Change-FilesName; Cause some user are.... creative. ¯\_(°_o)_/¯`n"
+$ScriptName = "Find-FilesInSpecifiedFolderWithSpecificCharactersAndDoSomething ¯\_(°_o)_/¯`n"
+$ScriptDescription = "This script helps change file names in bulk for specific folders.`n"
 
 $pswheight = (get-host).UI.RawUI.MaxWindowSize.Height
 $pswwidth = (get-host).UI.RawUI.MaxWindowSize.Width
@@ -24,11 +25,11 @@ $pswwidth = (get-host).UI.RawUI.MaxWindowSize.Width
 ##########################################################################################################################
 
 #function takes in a name to alert confirmation of deletion returns true or false
-function confirm($name)
+function confirm($OldName, $NewName)
 {
     #function variables, generally only the first two need changing
-    $title = "Confirm SharePoint Feature Removal!"
-    $message = "You are about to remove a SharePoint Feature: $name"
+    $title = "Confirm File Rename!"
+    $message = "You are about to rename the file: $OldName to $NewName"
 
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "This means Yes"
     $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "This means No"
@@ -36,7 +37,7 @@ function confirm($name)
     $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
 
     $result = $host.ui.PromptForChoice($title, $message, $Options, 0)
-    Write-Host " "
+
     Switch ($result)
         {
               0 { Return $true }
@@ -50,16 +51,23 @@ function Centeralize()
   param(
   [Parameter(Position=0,Mandatory=$true)]
   [string]$S,
-  [Parameter(Position=1,Mandatory=$false,ParameterSetName="color")]
-  [string]$C
+  [Parameter(Position=1,Mandatory=$false)]
+  [string]$C,
+  [Parameter(Mandatory=$false)]
+  [bool]$NoNewLine
   )
     $sLength = $S.Length
     $padamt =  "{0:N0}" -f (($pswwidth-$sLength)/2)
     $PadNum = $padamt/1 + $sLength #the divide by one is a quick dirty trick to covert string to int
     $CS = $S.PadLeft($PadNum," ").PadRight($PadNum," ") #Pad that shit
-    if ($C) #if variable for color exists run below
+    if ($C -and $NoNewLine) #if variable for color exists run below
     {    
-        Write-Host $CS -ForegroundColor $C #write that shit to host with color
+        Write-Host $CS -ForegroundColor $C -NoNewline #write that shit to host with color
+    }
+    elseif ($C)
+    {
+        #Write-Host $CS -ForegroundColor $C -NoNewline
+        Write-Host $CS -ForegroundColor $C
     }
     else #need this to prevent output twice if color is provided
     {
@@ -117,7 +125,7 @@ function ListTurds()
 #I'd like to say this function is more dynamic then it really is, it is not as dynamic as it sounds, but can be altered to suit such needs
 function AskHowToList($Question, $color)
 {
-    Centeralize "$Question" $color;$answer = Read-Host;Write-Host " "
+    Centeralize "$Question " -C "Red" -NoNewLine $true;$answer = Read-Host;Write-Host ""
     Switch($answer)
     {
         List{$result=0}
@@ -165,7 +173,7 @@ function ReplaceCharsInItems()
     {
         Write-Host "You have selected: "$Chars[$i]" What do you want to replace this character with? " -NoNewline;$Replacement = Read-Host
         $SelectedCharacter = $Chars[$i]
-        if($SelectedCharacter | Select-String -AllMatches $Fuckers){Write-Host "We found a special character... fixing...";$SelectedCharacter = "\"+$SelectedCharacter}
+        if($SelectedCharacter | Select-String -AllMatches $Fuckers){$SelectedCharacter = "\"+$SelectedCharacter} #;Write-Host "We found a special character... fixing..."
         foreach ($turd in $shit)
         {
             $MV = $turd.MatchedValue
@@ -173,8 +181,22 @@ function ReplaceCharsInItems()
             {
                 $OldName = $turd.NameToChange
                 $NewName = $OldName -Replace $SelectedCharacter, $Replacement
-                Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName; $turd.NameToChange=$NewName
+                # You'd have to remanipulate the $SelectedCharacter variable here to remove the \ in the host output
+                #Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName
+                $turd.NameToChange=$NewName
             }
+        }
+    }
+    foreach($turd in $shit)
+    {
+        #Write-Host "Congrats file: "$turd.name" is going to be named to: "$turd.NameToChange";Procced?"
+        if(confirm $turd.name $turd.NameToChange)
+        {
+            #Write the actual rename code here, should be one liner
+        }
+        else
+        {
+            Write-Host "Maybe Another time..."
         }
     }
 }
@@ -185,7 +207,7 @@ function ReplaceCharsInItems()
 
 foreach($L in $MylogoArray){Centeralize $L "green"}
 Centeralize $ScriptName "White"
-Centeralize "This script helps change file names in bulk for specific folders.`n"
+Centeralize $ScriptDescription "Magenta"
 $Path = GetPath
 $Items = Get-ChildItem -Path $Path -Recurse
 $Chars = GetChars
