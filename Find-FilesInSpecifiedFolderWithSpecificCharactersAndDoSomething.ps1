@@ -1,7 +1,7 @@
 ########################################################################################################################## 
 # Author: Zewwy (Aemilianus Kehler)
 # Date:   Feb 4, 2020
-# Script: Find-FilesInSpecifiedFolderWithSpecificCharactersAndDoSomething
+# Script: Change-FilesName
 # This script allows to remove/change characters from file names
 # Required parameters: 
 #   A File Path and selected characters of users choice
@@ -53,14 +53,14 @@ function Centeralize()
   [string]$S,
   [Parameter(Position=1,Mandatory=$false)]
   [string]$C,
-  [Parameter(Mandatory=$false)]
-  [bool]$NoNewLine
+  [Parameter(Position=2,Mandatory=$false)]
+  [string]$N
   )
     $sLength = $S.Length
     $padamt =  "{0:N0}" -f (($pswwidth-$sLength)/2)
     $PadNum = $padamt/1 + $sLength #the divide by one is a quick dirty trick to covert string to int
     $CS = $S.PadLeft($PadNum," ").PadRight($PadNum," ") #Pad that shit
-    if ($C -and $NoNewLine) #if variable for color exists run below
+    if ($C -and $N) #if variable for color exists run below
     {    
         Write-Host $CS -ForegroundColor $C -NoNewline #write that shit to host with color
     }
@@ -125,7 +125,7 @@ function ListTurds()
 #I'd like to say this function is more dynamic then it really is, it is not as dynamic as it sounds, but can be altered to suit such needs
 function AskHowToList($Question, $color)
 {
-    Centeralize "$Question " -C "Red" -NoNewLine $true;$answer = Read-Host;Write-Host ""
+    Centeralize "$Question " -C "Red" -N "NoNewLine";$answer = Read-Host;Write-Host ""
     Switch($answer)
     {
         List{$result=0}
@@ -151,9 +151,9 @@ function ExportList()
     $ValidPath = GetPath
     Write-Host "Provide a filename: " -NoNewLine;$answer = Read-Host; Write-Host ""
     $CSVFile = "$ValidPath\$answer"
-    Centeralize "You have entered: $CSVFile ... But are you good to write?" "green"
+    Centeralize "You have entered: $CSVFile ... But are you good to write?" "yellow"
     Try { [io.file]::OpenWrite($CSVFile).close() }
-    Catch { Write-Warning "Unable to write to output file $CSVFile" }
+    Catch { Centeralize "Unable to write to output file $CSVFile" "Red"}
     (Get-Item $CSVFile).Delete()
     Centeralize "Congrats, You can write to the specified file. Please Wait, creating export file..." "green"
     $shit | Select-Object Name, Directory, MatchedValue| Export-Csv -Path $CSVFile -NoTypeInformation
@@ -166,14 +166,14 @@ function ReplaceCharsInItems()
     #[ + ( )
     #These don't cause -match to error but list all? needs to be escaped
     #^ $
-    #all the above need to be esaped with \ .... fuckers
+    #all the above need to be esaped with \ .... SpecialCharacters
     $Chars = $Chars -replace '[\\]' #\ is used as an escape character in RegEx, but we can't have file names with them, so it should not be in this loop
-    $Fuckers = '[+($)^\[]' #The list of special characters in RegEx that need to be escaped
+    $SpecialCharacters = '[+($)^\[]' #The list of special characters in RegEx that need to be escaped
     for ($i=0; $i -lt $Chars.length; $i++)
     {
         Write-Host "You have selected: "$Chars[$i]" What do you want to replace this character with? " -NoNewline;$Replacement = Read-Host
         $SelectedCharacter = $Chars[$i]
-        if($SelectedCharacter | Select-String -AllMatches $Fuckers){$SelectedCharacter = "\"+$SelectedCharacter} #;Write-Host "We found a special character... fixing..."
+        if($SelectedCharacter | Select-String -AllMatches $SpecialCharacters){$SelectedCharacter = "\"+$SelectedCharacter} #;Write-Host "We found a special character... fixing..."
         foreach ($turd in $shit)
         {
             $MV = $turd.MatchedValue
@@ -192,7 +192,8 @@ function ReplaceCharsInItems()
         #Write-Host "Congrats file: "$turd.name" is going to be named to: "$turd.NameToChange";Procced?"
         if(confirm $turd.name $turd.NameToChange)
         {
-            #Write the actual rename code here, should be one liner
+            Try { Rename-Item $turd.name -NewName ($turd.NameToChange) }
+            Catch { Centeralize "Unable to change file's name"$turd.name "Red"}
         }
         else
         {
@@ -207,7 +208,7 @@ function ReplaceCharsInItems()
 
 foreach($L in $MylogoArray){Centeralize $L "green"}
 Centeralize $ScriptName "White"
-Centeralize $ScriptDescription "Magenta"
+Centeralize $ScriptDescription "Green"
 $Path = GetPath
 $Items = Get-ChildItem -Path $Path -Recurse
 $Chars = GetChars
