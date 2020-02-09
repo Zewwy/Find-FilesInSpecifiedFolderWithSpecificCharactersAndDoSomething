@@ -66,7 +66,6 @@ function Centeralize()
     }
     elseif ($C)
     {
-        #Write-Host $CS -ForegroundColor $C -NoNewline
         Write-Host $CS -ForegroundColor $C
     }
     else #need this to prevent output twice if color is provided
@@ -94,9 +93,9 @@ function GetPath()
 #Ask for search characters, if null use defaults, return it
 function GetChars()
 {
-    Write-host "Characters to search for !$'&{^,}~#%][)( " -ForegroundColor Magenta -NoNewline
+    Write-host "Characters to search for !$&'``^,~#%)(}{][@=; " -ForegroundColor Magenta -NoNewline
     $UnsupportedChars = Read-Host
-    if ( !$UnsupportedChars ){ $UnsupportedChars = "\]!$'&{^,+}~#%[)(" }
+    if ( !$UnsupportedChars ){ $UnsupportedChars = "\]!$'&{^,+}~#%[)@=;(``" }
     return $UnsupportedChars
 }
 
@@ -125,7 +124,7 @@ function ListTurds()
 #I'd like to say this function is more dynamic then it really is, it is not as dynamic as it sounds, but can be altered to suit such needs
 function AskHowToList($Question, $color)
 {
-    Centeralize "$Question " -C "Red" -N "NoNewLine";$answer = Read-Host;Write-Host ""
+    Centeralize "$Question " -C $color -N "NoNewLine";$answer = Read-Host;Write-Host ""
     Switch($answer)
     {
         List{$result=0}
@@ -156,8 +155,7 @@ function ExportList()
     Catch { Centeralize "Unable to write to output file $CSVFile" "Red"}
     (Get-Item $CSVFile).Delete()
     Centeralize "Congrats, You can write to the specified file. Please Wait, creating export file..." "green"
-    $shit | Select-Object Name, Directory, MatchedValue| Export-Csv -Path $CSVFile -NoTypeInformation
-
+    $shit | Select-Object Name, Directory, @{Expression={$_.MatchedValue -join '\'}} | Export-Csv -Path $CSVFile -NoTypeInformation
 }
 
 function ReplaceCharsInItems()
@@ -176,28 +174,117 @@ function ReplaceCharsInItems()
         if($SelectedCharacter | Select-String -AllMatches $SpecialCharacters){$SelectedCharacter = "\"+$SelectedCharacter} #;Write-Host "We found a special character... fixing..."
         foreach ($turd in $shit)
         {
-            $MV = $turd.MatchedValue
-            if ($MV -match $SelectedCharacter)
+            if ($turd.MatchedValue -match $SelectedCharacter)
             {
                 $OldName = $turd.NameToChange
                 $NewName = $OldName -Replace $SelectedCharacter, $Replacement
-                # You'd have to remanipulate the $SelectedCharacter variable here to remove the \ in the host output
-                #Write-Host "Replacing $SelectedCharacter in "$turd.name" with $Replacement;" $NewName
                 $turd.NameToChange=$NewName
             }
         }
     }
+    Write-Host ""
+    switch(AskHowToRename "Would you like to manually go through each file, or bulk rename with report? (M)anual\(B)ulk" "Yellow")
+    {
+        m {Manual}
+        a {Auto}
+    }
+
+}
+
+function AskHowToRename($Question, $color)
+{
+    Centeralize "$Question " -C $color -N "NoNewLine";$answer = Read-Host;Write-Host ""
+    Switch($answer)
+    {
+        Manual{$result=0}
+        M{$result=0}
+        Bulk{$result=1}
+        B{$result=1}
+        A{$result=1}
+        default{AskHowToRename $Question $color}
+    }
+    Switch ($result)
+        {
+              0 { Return "m" }
+              1 { Return "a" }
+        }
+}
+
+function Manual()
+{
     foreach($turd in $shit)
     {
-        #Write-Host "Congrats file: "$turd.name" is going to be named to: "$turd.NameToChange";Procced?"
+        #$turd | Get-Member
         if(confirm $turd.name $turd.NameToChange)
         {
-            Try { Rename-Item $turd.name -NewName ($turd.NameToChange) }
-            Catch { Centeralize "Unable to change file's name"$turd.name "Red"}
+            
+            $ThatOldName = $turd.FullName
+            if (($ThatOldName).ToCharArray() -ccontains "[") {Write-host "We found a bad char";$ThatOldName -replace "\[", "`["}
+            Try { Rename-Item -literalPath $ThatOldName -NewName ($turd.NameToChange) -ErrorAction Stop }
+            Catch [System.UnauthorizedAccessException]
+            {
+                Centeralize "You do not have permission to change this file's name" "Red"
+            }
+            Catch 
+            { 
+                $ErMsg = "Unable to change file's name "+$turd.name
+                Centeralize $ErMsg "Red"
+                $ErrMsg = $_.Exception.Message
+                Centeralize $ErrMsg "Red"
+            }
         }
         else
         {
             Write-Host "Maybe Another time..."
+        }
+    }
+}
+
+function confirmAuto()
+{
+    #function variables, generally only the first two need changing
+    $title = "Confirm Automatic File Rename!"
+    $message = "You are about to rename all the files! Make sure this is what you want to do!"
+
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "This means Yes"
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "This means No"
+
+    $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+
+    $result = $host.ui.PromptForChoice($title, $message, $Options, 0)
+
+    Switch ($result)
+        {
+              0 { Return $true }
+              1 { Return $false }
+        }
+}
+
+function Auto()
+{
+    Centeralize "Provide a report output path."
+    $ValidPath = GetPath
+    Write-Host "Provide a filename: " -NoNewLine;$answer = Read-Host; Write-Host ""
+    $CSVFile = "$ValidPath\$answer"
+    $shit | Select-Object Name, Directory, @{N='New File Name';Expression={$_.NameToChange}},@{N='Matched Value';Expression={$_.MatchedValue -join '\'}} | Export-Csv -Path $CSVFile -NoTypeInformation
+    Centeralize "A report has been generated at $CSVFile if everything is ok, then continue. This is your final warning." "Red"
+    if(confirmAuto)
+    {
+        Write-Host "This is where we write the final rename code..."
+            foreach($turd in $shit)
+            {
+            Try { Rename-Item $turd.name -NewName ($turd.NameToChange) -ErrorAction Stop }
+            Catch [System.UnauthorizedAccessException]
+            {
+                Centeralize "You do not have permission to change this file's name" "Red"
+            }
+            Catch 
+            { 
+                $ErMsg = "Unable to change file's name "+$turd.name
+                Centeralize $ErMsg "Red"
+                $ErrMsg = $_.Exception.Message
+                Centeralize $ErrMsg "Red"
+            }
         }
     }
 }
@@ -216,6 +303,7 @@ $RegEx = "[$Chars]"
 $shit = FilterItems $Items $RegEx
 if ($shit.Count -gt 0)
 {
+    Write-Host ""
     $ugh = "We have found a total of "+ $shit.count +" turds... what ya want to do? ((L)ist\(R)ename\(E)xport)"
     switch(AskHowToList $ugh "Red")
     {
